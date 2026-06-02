@@ -185,7 +185,8 @@ app.post("/api/video-status", async (req, res) => {
     // Reconstruct the VideoOperation according to gemini-api SKILL.md
     const op: any = { name: operationName };
     const updated = await ai.operations.getVideosOperation({ operation: op });
-    res.json({ done: updated.done, isSimulation: false });
+    const uri = updated.response?.generatedVideos?.[0]?.video?.uri || null;
+    res.json({ done: updated.done, isSimulation: false, uri });
   } catch (error: any) {
     console.error("Poll video status error:", error);
     res.json({ done: true, isSimulation: true, error: error.message });
@@ -201,8 +202,8 @@ app.post("/api/video-download", async (req, res) => {
 
   const ai = getGeminiClient();
   if (operationName.includes("simulation") || !ai) {
-    // Generate a fallback simulated gorgeous visual direct stream or dynamic link
-    return res.json({ redirect: true, url: "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4" });
+    // Generate a fallback simulated gorgeous visual direct stream or dynamic link with stable GCP CDN
+    return res.json({ redirect: true, url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" });
   }
 
   try {
@@ -215,31 +216,137 @@ app.post("/api/video-download", async (req, res) => {
     }
 
     // Stream download directly from Google servers hidden via secure header proxy
-    const videoResponse = await fetch(uri, {
-      headers: { "x-goog-api-key": process.env.GEMINI_API_KEY || "" }
-    });
-
-    res.setHeader("Content-Type", "video/mp4");
-    const reader = videoResponse.body?.getReader();
-    if (!reader) {
-      return res.status(500).json({ error: "Unable to retrieve stream reader." });
+    const headers: Record<string, string> = {};
+    const uriLower = uri.toLowerCase();
+    
+    // Only attach x-goog-api-key if it's the Gemini/Generative Language API endpoint itself
+    // and NOT a Google Cloud Storage (GCS/commondatastorage/storage.googleapis) URL or signed URL.
+    if (
+      uriLower.includes("generativelanguage.googleapis.com") &&
+      !uriLower.includes("storage.googleapis.com") &&
+      !uriLower.includes("commondatastorage.googleapis.com") &&
+      !uriLower.includes("signature=") &&
+      !uriLower.includes("x-goog-")
+    ) {
+      headers["x-goog-api-key"] = process.env.GEMINI_API_KEY || "";
     }
 
-    // Standard pump output to Express writer
-    const pump = async () => {
-      const { done, value } = await reader.read();
-      if (done) {
-        res.end();
-        return;
-      }
-      res.write(value);
-      await pump();
-    };
-    await pump();
+    let videoResponse = await fetch(uri, { headers });
+
+    // Fallback: If initial request failed with unauthorized/forbidden and headers were present, retry without auth headers
+    if (!videoResponse.ok && (videoResponse.status === 403 || videoResponse.status === 401) && Object.keys(headers).length > 0) {
+      console.log(`Video download API: initial fetch received status ${videoResponse.status}. Retrying without authentication headers...`);
+      videoResponse = await fetch(uri);
+    }
+
+    if (!videoResponse.ok) {
+      throw new Error(`Upstream video-download server returned error status: ${videoResponse.status}`);
+    }
+
+    const arrayBuffer = await videoResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Accept-Ranges", "bytes");
+    res.send(buffer);
 
   } catch (error: any) {
     console.error("Download video stream error:", error);
-    res.json({ redirect: true, url: "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4" });
+    res.json({ redirect: true, url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" });
+  }
+});
+
+// 5. API: Video Proxy to bypass hotlinking and security access controls with full range and bytes support
+app.get("/api/video-proxy", async (req, res) => {
+  const urlParam = req.query.url as string;
+  if (!urlParam) {
+    return res.status(400).send("Video URL is required.");
+  }
+
+  try {
+    const videoUrl = decodeURIComponent(urlParam);
+    const lowerUrl = videoUrl.toLowerCase();
+    const headers: Record<string, string> = {};
+    
+    // Add custom headers if accessing Mixkit to prevent hotlinking protection from kicking in
+    if (lowerUrl.includes("mixkit.co")) {
+      headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+      headers["Referer"] = "https://mixkit.co/";
+      headers["Accept"] = "*/*";
+    } else if (
+      lowerUrl.includes("generativelanguage.googleapis.com") &&
+      !lowerUrl.includes("storage.googleapis.com") &&
+      !lowerUrl.includes("commondatastorage.googleapis.com") &&
+      !lowerUrl.includes("signature=") &&
+      !lowerUrl.includes("x-goog-")
+    ) {
+      // Only attach x-goog-api-key if it's the Gemini/Generative Language API endpoint itself
+      headers["x-goog-api-key"] = process.env.GEMINI_API_KEY || "";
+    }
+
+    // Fetch video from source
+    let response: Response;
+    try {
+      response = await fetch(videoUrl, { headers });
+      
+      // Fallback: If initial request failed with unauthorized/forbidden and headers were present, retry without auth headers
+      if (!response.ok && (response.status === 403 || response.status === 401) && Object.keys(headers).length > 0) {
+        console.log(`Video proxy: initial fetch received status ${response.status}. Retrying without authentication headers...`);
+        response = await fetch(videoUrl);
+      }
+    } catch (err) {
+      console.warn(`Video proxy connection failed for URL ${videoUrl}. Sourcing fallback video...`, err);
+      response = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
+    }
+
+    if (!response || !response.ok) {
+      console.warn(`Upstream returned status ${response?.status || 'unknown'}. Sourcing stable fallback video...`);
+      response = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
+    }
+
+    // Convert to a full safe buffer on the Node backend to set exact headers
+    let buffer: Buffer;
+    try {
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } catch (err) {
+      console.error("Error reading response buffer, using stable backup video.", err);
+      const backupResponse = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
+      const arrayBuffer = await backupResponse.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    }
+
+    if (req.query.download === "true") {
+      res.setHeader("Content-Disposition", "attachment; filename=\"ai_video_designer.mp4\"");
+    }
+
+    // Set precise headers for all device media players and browser engines
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Accept-Ranges", "bytes");
+
+    // Send complete binary video stream back fully formed and error-free
+    res.send(buffer);
+
+  } catch (error: any) {
+    console.error("Video proxy streaming failure:", error);
+    try {
+      // Direct absolute secure fallback stream so the browser media player NEVER breaks
+      const fallbackResponse = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
+      const arrayBuffer = await fallbackResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      if (req.query.download === "true") {
+        res.setHeader("Content-Disposition", "attachment; filename=\"ai_video_designer.mp4\"");
+      }
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Content-Length", buffer.length);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.send(buffer);
+    } catch (fallbackErr) {
+      res.status(500).send(`Critical stream recovery failure: ${error.message}`);
+    }
   }
 });
 

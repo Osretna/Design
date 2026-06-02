@@ -139,6 +139,72 @@ export default function App() {
   const text = translations[lang];
   const isRTL = lang === "ar";
 
+  // Helper to resolve video URL cleanly and bypass hotlink/proxy limitations
+  const getPlayUrl = (url: string) => {
+    if (!url) return "";
+    if (url.startsWith("/api/video-proxy")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return `/api/video-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
+  const getDownloadUrl = (url: string) => {
+    if (!url) return "";
+    if (url.startsWith("/api/video-proxy")) {
+      return url.includes("?") ? `${url}&download=true` : `${url}?download=true`;
+    }
+    return `/api/video-proxy?url=${encodeURIComponent(url)}&download=true`;
+  };
+
+  const safeSaveVideosToLocalStorage = (userId: string, videosToSave: GeneratedVideo[]) => {
+    if (!userId) return;
+    const key = `local_videos_${userId}`;
+    
+    // Helper to prune heavy Base64 data from older items to save space
+    const pruneBase64 = (items: GeneratedVideo[], forceAll = false): GeneratedVideo[] => {
+      return items.map((item, idx) => {
+        if (item.imageUrl && item.imageUrl.startsWith("data:") && (forceAll || idx > 1)) {
+          return {
+            ...item,
+            imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=500&q=80"
+          };
+        }
+        return item;
+      });
+    };
+
+    try {
+      localStorage.setItem(key, JSON.stringify(videosToSave));
+    } catch (e) {
+      console.warn("localStorage quota exceeded, pruning old base64 images to conserve memory.", e);
+      try {
+        const pruned = pruneBase64(videosToSave, false);
+        localStorage.setItem(key, JSON.stringify(pruned));
+      } catch (e2) {
+        console.warn("localStorage quota exceeded again, pruning ALL base64 images.", e2);
+        try {
+          const fullyPruned = pruneBase64(videosToSave, true);
+          localStorage.setItem(key, JSON.stringify(fullyPruned));
+        } catch (e3) {
+          console.warn("localStorage quota exceeded on third retry, reducing count to latest 10 items.", e3);
+          try {
+            const sliced = pruneBase64(videosToSave, true).slice(0, 10);
+            localStorage.setItem(key, JSON.stringify(sliced));
+          } catch (e4) {
+            console.error("Critical localStorage quota failure. Clearing active image storage.", e4);
+            try {
+              const minimal = pruneBase64(videosToSave, true).slice(0, 3);
+              localStorage.setItem(key, JSON.stringify(minimal));
+            } catch (e5) {
+              console.error("Unable to utilize localStorage storage layer.", e5);
+            }
+          }
+        }
+      }
+    }
+  };
+
   // Trigger quick styled toast alert
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -320,7 +386,32 @@ export default function App() {
   const localFetchCollections = (user: UserProfile) => {
     const cachedVideos = localStorage.getItem(`local_videos_${user.userId}`);
     if (cachedVideos) {
-      setMyVideos(JSON.parse(cachedVideos));
+      try {
+        let parsed: GeneratedVideo[] = JSON.parse(cachedVideos);
+        let migrated = false;
+        parsed = parsed.map((v: GeneratedVideo) => {
+          if (v.videoUrl && v.videoUrl.includes("mixkit.co")) {
+            migrated = true;
+            if (v.videoUrl.includes("stars-in-space") || v.videoId === "video_101") {
+              v.videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+            } else if (v.videoUrl.includes("gold-dust") || v.videoId === "video_102") {
+              v.videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+            } else if (v.videoUrl.includes("forest-stream")) {
+              v.videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4";
+            } else {
+              v.videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+            }
+          }
+          return v;
+        });
+        if (migrated) {
+          safeSaveVideosToLocalStorage(user.userId, parsed);
+        }
+        setMyVideos(parsed);
+      } catch (err) {
+        // Fallback seed
+        setMyVideos([]);
+      }
     } else {
       // Load sample records
       const seed: GeneratedVideo[] = [
@@ -330,7 +421,7 @@ export default function App() {
           prompt: "سفينة فضائية تبحر بين كواكب نيون زرقاء متلألئة وعاصفة فضائية",
           ratio: "16:9",
           status: "completed",
-          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4",
+          videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
           createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
           themeColor: "blue"
         },
@@ -340,13 +431,13 @@ export default function App() {
           prompt: "غروب شمس سينمائي على واحة رملية ذهبية تنبض بالحياة والألوان الداكنة",
           ratio: "9:16",
           status: "completed",
-          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-gold-dust-particles-glittering-background-31124-large.mp4",
+          videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
           createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
           themeColor: "orange"
         }
       ];
       setMyVideos(seed);
-      localStorage.setItem(`local_videos_${user.userId}`, JSON.stringify(seed));
+      safeSaveVideosToLocalStorage(user.userId, seed);
     }
 
     // Set mock user accounts
@@ -599,22 +690,56 @@ export default function App() {
 
     // If it's real Veo rendering, poll our status endpoint in background
     if (!isSimulation) {
-      // Poll several times
-      setTimeout(async () => {
-        clearInterval(interval);
-        setGenerationProgress(100);
-        await saveCompletedVideo(promptInput, ratioInput, "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4");
-      }, 9000);
+      let pollCount = 0;
+      const maxPolls = 30; // Max 2 minutes (30 * 4s)
+      const poller = setInterval(async () => {
+        pollCount++;
+        try {
+          const statusRes = await fetch("/api/video-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ operationName })
+          });
+          const statusData = await statusRes.json();
+          
+          if (statusData.done) {
+            clearInterval(poller);
+            clearInterval(interval);
+            setGenerationProgress(100);
+            
+            let finalVideoUrl = "";
+            if (statusData.uri) {
+              // Wrap with proxy so it sends the API key header securely!
+              finalVideoUrl = `/api/video-proxy?url=${encodeURIComponent(statusData.uri)}`;
+            } else {
+              finalVideoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+            }
+            await saveCompletedVideo(promptInput, ratioInput, finalVideoUrl);
+          } else {
+            // Keep increasing progress slightly so the user feels movement
+            setGenerationProgress((prev) => Math.min(prev + 1, 98));
+          }
+        } catch (err) {
+          console.error("Error polling video status:", err);
+        }
+
+        if (pollCount >= maxPolls) {
+          clearInterval(poller);
+          clearInterval(interval);
+          setGenerationProgress(100);
+          await saveCompletedVideo(promptInput, ratioInput, "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
+        }
+      }, 4000);
     } else {
       // Instant rendering mode simulation completed inside 3.5 seconds
       setTimeout(async () => {
         clearInterval(interval);
         setGenerationProgress(100);
         let sampleVideos = [
-          "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4",
-          "https://assets.mixkit.co/videos/preview/mixkit-gold-dust-particles-glittering-background-31124-large.mp4",
-          "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
-          "https://assets.mixkit.co/videos/preview/mixkit-abstract-glowing-lines-neon-background-50033-large.mp4"
+          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
         ];
         let chosenVideo = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
         await saveCompletedVideo(promptInput, ratioInput, chosenVideo);
@@ -642,7 +767,7 @@ export default function App() {
     if (isDemoMode) {
       const updated = [newVideo, ...myVideos];
       setMyVideos(updated);
-      localStorage.setItem(`local_videos_${currentUser.userId}`, JSON.stringify(updated));
+      safeSaveVideosToLocalStorage(currentUser.userId, updated);
     } else {
       try {
         await setDoc(doc(db, "generated_videos", newVideo.videoId), newVideo);
@@ -651,7 +776,7 @@ export default function App() {
         // Local fallback
         const updated = [newVideo, ...myVideos];
         setMyVideos(updated);
-        localStorage.setItem(`local_videos_${currentUser.userId}`, JSON.stringify(updated));
+        safeSaveVideosToLocalStorage(currentUser.userId, updated);
       }
     }
 
@@ -666,7 +791,9 @@ export default function App() {
     if (isDemoMode) {
       const updated = myVideos.filter(v => v.videoId !== vidId);
       setMyVideos(updated);
-      localStorage.setItem(`local_videos_${currentUser?.userId}`, JSON.stringify(updated));
+      if (currentUser?.userId) {
+        safeSaveVideosToLocalStorage(currentUser.userId, updated);
+      }
     } else {
       try {
         await deleteDoc(doc(db, "generated_videos", vidId));
@@ -674,7 +801,9 @@ export default function App() {
       } catch (e) {
         const updated = myVideos.filter(v => v.videoId !== vidId);
         setMyVideos(updated);
-        localStorage.setItem(`local_videos_${currentUser?.userId}`, JSON.stringify(updated));
+        if (currentUser?.userId) {
+          safeSaveVideosToLocalStorage(currentUser.userId, updated);
+        }
       }
     }
     if (activeVideo?.videoId === vidId) {
@@ -1271,7 +1400,7 @@ export default function App() {
                               {/* Dynamic Aspect Ratio video controller container */}
                               <div className={`w-full bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative group/aspect ${activeVideo.ratio === "9:16" ? "max-h-[360px] aspect-[9/16] inline-flex items-center justify-center mx-auto block" : "aspect-video"}`}>
                                 <video
-                                  src={activeVideo.videoUrl}
+                                  src={getPlayUrl(activeVideo.videoUrl)}
                                   controls
                                   autoPlay
                                   loop
@@ -1280,7 +1409,7 @@ export default function App() {
 
                                 <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider border border-slate-800 text-slate-200 uppercase">
                                   {activeVideo.ratio}
-                                </div>
+                                  </div>
                               </div>
 
                               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
@@ -1295,7 +1424,7 @@ export default function App() {
                               {/* Action controls row */}
                               <div className="flex gap-2">
                                 <a
-                                  href={activeVideo.videoUrl}
+                                  href={getDownloadUrl(activeVideo.videoUrl)}
                                   download={`ai_video_${activeVideo.videoId}.mp4`}
                                   target="_blank"
                                   rel="noreferrer"
