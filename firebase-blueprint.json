@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with roles (admin, manager, editor, viewer) managed by administrators.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Auth user ID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "manager", "user"],
+          "description": "User's access control group."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar image URL."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the user account was first initialized."
+        },
+        "addedBy": {
+          "type": "string",
+          "description": "The administrator user ID who authorized this user."
+        }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "LoginLog": {
+      "title": "Login Log",
+      "description": "Audit trails of login activity for reporting and security dashboard.",
+      "type": "object",
+      "properties": {
+        "logId": {
+          "type": "string",
+          "description": "Unique log identifier."
+        },
+        "userId": {
+          "type": "string",
+          "description": "User who signed in."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email of the signed-in user."
+        },
+        "loginTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Precise transaction timestamp."
+        },
+        "platform": {
+          "type": "string",
+          "description": "Operating system (Windows, iOS, Android, etc.)"
+        },
+        "language": {
+          "type": "string",
+          "description": "User language preference at login."
+        }
+      },
+      "required": ["logId", "userId", "email", "loginTime"]
+    },
+    "GeneratedVideo": {
+      "title": "Generated Video Workspace",
+      "description": "Workspaces representing image-to-video generators and completed sessions.",
+      "type": "object",
+      "properties": {
+        "videoId": {
+          "type": "string",
+          "description": "Unique session ID."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner of this workspace."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "The description written by the user to command the video generation."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Base64 or secure storage URL of the reference photo."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "processing", "completed", "failed"],
+          "description": "Current processing state."
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "The resulting URL of the simulated or generated video clip."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Video length in seconds."
+        },
+        "ratio": {
+          "type": "string",
+          "description": "Aspect ratio selected (16:9 or 9:16)."
+        },
+        "themeColor": {
+          "type": "string",
+          "description": "Visual palette flavor utilized."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["videoId", "userId", "prompt", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Individual profiles and privilege configurations."
+    },
+    "login_logs/{logId}": {
+      "schema": "LoginLog",
+      "description": "Global user login history."
+    },
+    "generated_videos/{videoId}": {
+      "schema": "GeneratedVideo",
+      "description": "Public or user-specific creative videos."
+    }
+  }
+}

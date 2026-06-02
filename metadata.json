@@ -1,0 +1,8 @@
+{
+  "name": "AI Video Designer",
+  "description": "منصة لتصميم وتحويل الصور والنصوص إلى فيديوهات بذكاء اصطناعي فائق الدقة ومتوافقة مع الهواتف كمستند PWA متكامل",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
