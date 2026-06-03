@@ -12,8 +12,9 @@ import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import ToolsContainer from "./components/ToolsContainer";
 import ReportsPanel from "./components/ReportsPanel";
+import { initializeBackendUrl, getPersistedBackendUrl, savePersistedBackendUrl } from "./utils/api";
 
-import { Crown, LogOut, Terminal, Compass, Laptop, Cpu, ShieldCheck } from "lucide-react";
+import { Crown, LogOut, Terminal, Compass, Laptop, Cpu, ShieldCheck, Settings } from "lucide-react";
 
 export default function App() {
   const [language, setLanguage] = useState<LanguageMode>("ar");
@@ -23,6 +24,14 @@ export default function App() {
   const [reports, setReports] = useState<Report[]>([]);
   const [uniqueUsersCount, setUniqueUsersCount] = useState(1);
   const [authChecking, setAuthChecking] = useState(true);
+  const [backendUrl, setBackendUrl] = useState("");
+  const [showApiSettings, setShowApiSettings] = useState(false);
+
+  // Initialize and load active backend base URL settings on mount
+  useEffect(() => {
+    initializeBackendUrl();
+    setBackendUrl(getPersistedBackendUrl());
+  }, []);
 
   // Localization labels helper
   const t = language === "ar" ? ARABIC_TRANSLATION : ENGLISH_TRANSLATION;
@@ -226,8 +235,73 @@ export default function App() {
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-xs text-slate-500 font-medium">Secured with Firebase Firestore Guard</span>
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse-slow inline-block shadow-lg shadow-emerald-500/50" />
+                
+                <button
+                  onClick={() => setShowApiSettings(!showApiSettings)}
+                  className={`p-1.5 px-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    showApiSettings
+                      ? "bg-orange-500/15 border-orange-500/40 text-orange-500"
+                      : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-orange-500"
+                  }`}
+                  title="Configure API Gateway"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>API</span>
+                </button>
               </div>
             </div>
+
+            {/* API Backend Custom Connection Configuration Panel */}
+            {showApiSettings && (
+              <div className={`p-5 rounded-2xl border space-y-3 transition-all duration-300 ${
+                theme === "dark" ? "border-slate-800 bg-[#11131b]" : "border-slate-200 bg-slate-50/50"
+              }`} id="api-connection-settings-panel">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    ⚙️ {language === "ar" ? "إعدادات بوابة الربط بالخادم (API Base URL)" : "API Gateway Connection Settings"}
+                  </h4>
+                  <span className="text-[10px] font-mono bg-orange-500/10 text-orange-500 dark:text-orange-400 px-2 py-0.5 rounded border border-orange-500/20">
+                    CORS Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {language === "ar" 
+                    ? "عند استضافة واجهة التطبيق بشكل منفصل (مثلاً على Vercel)، يحتاج التطبيق للاتصال بعنوان الـ API الخاص بخادم Cloud Run لتوليد الصور والفيديوهات والكلام."
+                    : "If you run or deploy this frontend on an external provider (such as Vercel), specify your active Cloud Run/Server API URL below to direct AI generation requests."}
+                </p>
+                <div className="flex gap-2 max-w-xl">
+                  <input
+                    type="text"
+                    value={backendUrl}
+                    onChange={(e) => setBackendUrl(e.target.value)}
+                    placeholder="https://your-cloud-run-url.run.app"
+                    className="flex-1 bg-white dark:bg-[#090b11] border border-slate-200 dark:border-slate-800 focus:border-orange-500 rounded-xl px-3 py-2 text-xs outline-none font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      savePersistedBackendUrl(backendUrl);
+                      alert(language === "ar" ? "تم حفظ التعديلات بنجاح وبدء ربط الخادم!" : "API Gateway target URL updated successfully!");
+                      setShowApiSettings(false);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:opacity-90 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/10 transition-all cursor-pointer shrink-0"
+                  >
+                    {language === "ar" ? "حفظ التغييرات" : "Apply Gateway"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const origin = window.location.origin;
+                      setBackendUrl(origin);
+                      savePersistedBackendUrl(origin);
+                      alert(language === "ar" ? "تمت استعادة الإعدادات الافتراضية بنجاح!" : "Restored system default API URL targets.");
+                      setShowApiSettings(false);
+                    }}
+                    className="px-3 py-2 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
+                  >
+                    {language === "ar" ? "افتراضي" : "Reset"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Dashboard counters */}
             <Dashboard reports={reports} usersCount={uniqueUsersCount} lang={language} />

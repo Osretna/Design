@@ -13,6 +13,17 @@ const PORT = 3000;
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
+// Enable Cross-Origin Resource Sharing (CORS) for external frontend deployments (like Vercel)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Initialize GoogleGenAI client lazily to handle missing key gracefully
 let aiClient: GoogleGenAI | null = null;
 

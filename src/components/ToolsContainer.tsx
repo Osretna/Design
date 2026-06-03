@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { ARABIC_TRANSLATION, ENGLISH_TRANSLATION, LocalizationType } from "../types";
+import { getApiUrl } from "../utils/api";
 import { Image as ImageIcon, Video, Speech, Sliders, Play, Sparkles, Upload, FileAudio, Check, Trash2 } from "lucide-react";
 
 interface Props {
@@ -86,7 +87,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
     setGeneratedImgUrl(null);
 
     try {
-      const response = await fetch("/api/generate-image", {
+      const response = await fetch(getApiUrl("/api/generate-image"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -120,7 +121,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
     setRenderMessage(lang === "ar" ? "جاري تهيئة خادم Veo ومسح اللقطة الأولى..." : "Preparing Veo canvas & analyzing start frame...");
 
     try {
-      const startRes = await fetch("/api/generate-video", {
+      const startRes = await fetch(getApiUrl("/api/generate-video"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -167,7 +168,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
         const msgIdx = Math.min(Math.floor(pollingAttempts / 2), loadingStages.length - 1);
         setRenderMessage(loadingStages[msgIdx]);
 
-        const statusRes = await fetch("/api/video-status", {
+        const statusRes = await fetch(getApiUrl("/api/video-status"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ operationName }),
@@ -187,7 +188,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
       setRenderMessage(lang === "ar" ? "تحميل مقطع الفيديو من السحابة..." : "Downloading high-definition video bundle...");
 
       // Download standard video binary stream
-      const downloadRes = await fetch("/api/video-download", {
+      const downloadRes = await fetch(getApiUrl("/api/video-download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ operationName }),
@@ -249,7 +250,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
 
     // Gemini Server Engine
     try {
-      const response = await fetch("/api/text-to-speech", {
+      const response = await fetch(getApiUrl("/api/text-to-speech"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
