@@ -2,133 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Global Safety Net Catch-All (Default Deny)
+    // First Rule: Global safety net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Primitive Global Helpers ---
+    // Reuseable global primitives
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isEmailVerified() {
-      return isSignedIn() && (
-        request.auth.token.email_verified == true || 
-        request.auth.token.firebase.sign_in_provider == 'google.com'
-      );
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Checking if the user is the administrator based on the bootstrapped email or an explicit admin document
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 's.mohamed1111111@gmail.com' || 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
+    // Validation helpers
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email'])
+        && data.uid == request.auth.uid
+        && data.email is string
+        && (!('displayName' in data) || data.displayName is string)
+        && (!('photoURL' in data) || data.photoURL is string)
+        && (!('language' in data) || data.language in ['ar', 'en'])
+        && (!('theme' in data) || data.theme in ['dark', 'light']);
     }
 
-    function existing() {
-      return resource.data;
+    function isValidReport(data) {
+      return data.keys().hasAll(['id', 'userId', 'type', 'timestamp'])
+        && data.id is string
+        && data.userId == request.auth.uid
+        && data.type in ['login', 'text-to-image', 'image-to-video', 'text-to-speech']
+        && data.timestamp is string;
     }
 
-    // --- Entity Specific Validation Blueprints ---
-
-    // Validation for User profile
-    function isValidUser(data) {
-      return data.keys().hasAll(['userId', 'email', 'role', 'displayName', 'createdAt']) &&
-             data.keys().size() <= 8 &&
-             data.userId is string && data.userId.size() <= 128 &&
-             data.email is string && data.email.size() <= 200 &&
-             data.role is string && (data.role == 'admin' || data.role == 'manager' || data.role == 'user') &&
-             data.displayName is string && data.displayName.size() <= 128;
-    }
-
-    // Validation for LoginLog
-    function isValidLoginLog(data) {
-      return data.keys().hasAll(['logId', 'userId', 'email', 'loginTime', 'platform']) &&
-             data.keys().size() <= 7 &&
-             data.logId is string && data.logId.size() <= 128 &&
-             data.userId is string && data.userId.size() <= 128 &&
-             data.email is string && data.email.size() <= 200 &&
-             data.platform is string && data.platform.size() <= 100;
-    }
-
-    // Validation for GeneratedVideo
-    function isValidGeneratedVideo(data) {
-      return data.keys().hasAll(['videoId', 'userId', 'prompt', 'status', 'createdAt']) &&
-             data.keys().size() <= 12 &&
-             data.videoId is string && data.videoId.size() <= 128 &&
-             data.userId is string && data.userId.size() <= 128 &&
-             data.prompt is string && data.prompt.size() <= 1000 &&
-             data.status is string && (data.status == 'pending' || data.status == 'processing' || data.status == 'completed' || data.status == 'failed') &&
-             data.ratio is string && (data.ratio == '16:9' || data.ratio == '9:16');
-    }
-
-    // --- Collection Custom Mappings ---
-
-    // USERS COLLECTION
+    // Mappings and matching rules
     match /users/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow list: if isAdmin();
-      
-      // Creating standard profiles is allowed on Gmail login. Admin promotion is locked.
-      allow create: if isSignedIn() && isValidId(userId) && isOwner(userId) && isValidUser(incoming()) && (
-        incoming().role == 'user' || isAdmin()
-      );
-      
-      // Updates can only be made by the user themselves (to modify name/photo) without escalating their role, or by Admin
-      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && (
-        // Prevents privilege escalation: user cannot change their own role unless they already are Admin
-        (incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])) ||
-        isAdmin()
-      );
-
-      allow delete: if isAdmin();
+      allow get: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(userId);
     }
 
-    // ADMINS COLLECTION (Strict list of admin tokens)
-    match /admins/{adminId} {
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && isValidId(reportId) && isValidReport(request.resource.data);
       allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // LOGIN LOGS COLLECTION (Audit Trails)
-    match /login_logs/{logId} {
-      allow get, list: if isAdmin();
-      allow create: if isSignedIn() && isValidId(logId) && isValidLoginLog(incoming()) && (
-        incoming().userId == request.auth.uid
-      );
-      allow update, delete: if false; // Logs are write-once/immutable audit trails
-    }
-
-    // GENERATED VIDEOS WORKSPACES
-    match /generated_videos/{videoId} {
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (request.query.limit <= 100) && (
-        // Must filter queries client-side to enforce role safety
-        isAdmin() || resource.data.userId == request.auth.uid
-      );
-      allow create: if isSignedIn() && isValidId(videoId) && isValidGeneratedVideo(incoming()) && (
-        incoming().userId == request.auth.uid
-      );
-      allow update: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin()) && isValidGeneratedVideo(incoming()) && (
-        // Owner changes prompt & ratio or status shifts
-        (incoming().userId == existing().userId && incoming().diff(existing()).affectedKeys().hasAny(['prompt', 'ratio', 'imageUrl', 'status', 'videoUrl', 'duration'])) ||
-        isAdmin()
-      );
-      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
     }
   }
 }

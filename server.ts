@@ -1,357 +1,246 @@
 import express from "express";
 import path from "path";
-import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI, GenerateVideosOperation, Modality } from "@google/genai";
+import dotenv from "dotenv";
 
-// Initialize environment variables
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-// Increase body parser limits to support base64 imagery uploads
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Increase payload sizes as we will be processing base64 image data
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
-// Shared server-side Gemini client
-const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    return null;
-  }
-  return new GoogleGenAI({
-    apiKey: apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
+// Initialize GoogleGenAI client lazily to handle missing key gracefully
+let aiClient: GoogleGenAI | null = null;
+
+function getAIClient(): GoogleGenAI {
+  if (!aiClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error("GEMINI_API_KEY is not defined in environments. Please set it in Settings > Secrets.");
+    }
+    aiClient = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
       },
-    },
-  });
-};
-
-// 1. API: Generate Cinematic Scenes / Video Storyboards
-app.post("/api/generate-storyboard", async (req, res) => {
-  const { prompt, ratio, image } = req.body;
-
-  if (!prompt) {
-    return res.status(400).json({ error: "Descriptive prompt is required." });
-  }
-
-  const ai = getGeminiClient();
-  if (!ai) {
-    // If no API key is specified, fallback to a local high-fidelity generator
-    return res.json({
-      success: true,
-      mode: "fallback",
-      storyboard: [
-        `Scene 1: Establishing tracking zoom on background inspired by user prompt: "${prompt}".`,
-        `Scene 2: Transition through color-grade and particles matching selected themes.`,
-        `Scene 3: Primary action sequence with motion blur and depth mapping.`,
-        `Scene 4: Dynamic lighting lens flare sweeping across the viewport.`,
-        `Scene 5: Cinematic resolution fade matching aspect ratio ${ratio || "16:9"}.`
-      ],
-      estimatedTime: 5
     });
   }
+  return aiClient;
+}
 
+// ----------------------
+// BACKEND API ENDPOINTS
+// ----------------------
+
+// 1. Text-to-Image Proxy Block
+app.post("/api/generate-image", async (req, res) => {
   try {
-    let contents: any = `Write an expert director's visual scenario & timeline storyboard mapping out an aesthetic short video for aspect ratio ${ratio || "16:9"} based on the following creative prompt: "${prompt}". Suggest specific lighting styles, color accents, and slow-motion descriptions, structured in 5 key scene frames.`;
-
-    if (image && image.startsWith("data:")) {
-      const base64Data = image.split(",")[1];
-      const mimeType = image.split(";")[0].split(":")[1] || "image/png";
-      const imagePart = {
-        inlineData: {
-          mimeType: mimeType,
-          data: base64Data
-        }
-      };
-      contents = {
-        parts: [
-          imagePart,
-          { text: `Based on this starting reference photograph, generate a 5-scene cinematic video scenario detailing fluid movement, lighting sweep, and visual transitions that follow the prompt: "${prompt}".` }
-        ]
-      };
+    const { prompt, aspectRatio } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required for image generation" });
     }
 
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: contents,
+      model: "gemini-2.5-flash-image",
+      contents: {
+        parts: [{ text: prompt }],
+      },
       config: {
-        systemInstruction: "You are an elite Hollywood cinematic AI director producing outstanding video storyboards and visual timelines, highly detailed with lighting changes and framing specs."
-      }
+        imageConfig: {
+          aspectRatio: aspectRatio || "1:1",
+        },
+      },
     });
 
-    const lines = response.text
-      ? response.text.split("\n").filter(l => l.trim().length > 3).slice(0, 5)
-      : [`Cinematic flow based on: "${prompt}"`];
+    let base64Image = null;
+    let descriptionText = "";
+
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        base64Image = part.inlineData.data;
+      } else if (part.text) {
+        descriptionText += part.text;
+      }
+    }
+
+    if (!base64Image) {
+      // Sometimes it is first part or the only part - search deeper
+      const fallbacks = response.candidates?.[0]?.content?.parts || [];
+      if (fallbacks.length > 0 && fallbacks[0].inlineData) {
+        base64Image = fallbacks[0].inlineData.data;
+      }
+    }
+
+    if (!base64Image) {
+      throw new Error("No image was returned by the generation model.");
+    }
 
     res.json({
       success: true,
-      mode: "gemini-generated",
-      storyboard: lines,
-      estimatedTime: 8
+      imageUrl: `data:image/png;base64,${base64Image}`,
+      description: descriptionText,
     });
-  } catch (error: any) {
-    console.error("Gemini Storyboard Generation Error:", error);
-    res.json({
-      success: false,
-      error: error.message || "An error occurred during Gemini query.",
-      storyboard: [
-        `Scene 1: Motion tracking simulation with reference focus: "${prompt}".`,
-        `Scene 2: Real-time visual layout optimization.`,
-        `Scene 3: Narrative resolution framework.`
-      ]
-    });
+  } catch (err: any) {
+    console.error("Image generation error:", err);
+    res.status(500).json({ error: err.message || "Failed to generate image" });
   }
 });
 
-// 2. API: Start Veo real video rendering operation
+// 2. Video Step 1: Start (POST /api/generate-video)
 app.post("/api/generate-video", async (req, res) => {
-  const { prompt, ratio, image, forceSimulation } = req.body;
-  const ai = getGeminiClient();
-
-  // If user requests a high-speed simulation or has no active API key, return offline operation mock ID
-  if (forceSimulation || !ai) {
-    const simulationOpId = `simulation_${Date.now()}`;
-    return res.json({
-      operationName: `models/veo-3.1-lite-generate-preview/operations/${simulationOpId}`,
-      isSimulation: true
-    });
-  }
-
   try {
-    const config: any = {
-      numberOfVideos: 1,
-      resolution: "720p",
-      aspectRatio: ratio === "9:16" ? "9:16" : "16:9"
-    };
+    const { prompt, imageBytes, mimeType, aspectRatio } = req.body;
+    
+    // We can generate video even from prompt only, but supporting starting image
+    const ai = getAIClient();
+    const cleanPrompt = prompt || "A fascinating video transformation";
 
     let payload: any = {
       model: "veo-3.1-lite-generate-preview",
-      prompt: prompt || "A luxurious cinematic animation",
-      config: config
+      prompt: cleanPrompt,
+      config: {
+        numberOfVideos: 1,
+        resolution: "1080p", 
+        aspectRatio: aspectRatio || "16:9",
+      }
     };
 
-    if (image && image.startsWith("data:")) {
-      const base64Data = image.split(",")[1];
-      const mimeType = image.split(";")[0].split(":")[1] || "image/png";
+    if (imageBytes) {
+      const cleanBytes = imageBytes.includes(",") ? imageBytes.split(",")[1] : imageBytes;
       payload.image = {
-        imageBytes: base64Data,
-        mimeType: mimeType
+        imageBytes: cleanBytes,
+        mimeType: mimeType || "image/png",
       };
     }
 
-    // Call veo model directly using correct system skill instructions page
     const operation = await ai.models.generateVideos(payload);
-    res.json({
-      operationName: operation.name,
-      isSimulation: false
-    });
+    res.json({ operationName: operation.name });
   } catch (err: any) {
-    console.error("Veo Video Call Error:", err);
-    // Graceful fallback to simulation so the app NEVER stops responding
-    const simulationOpId = `simulation_fallback_${Date.now()}`;
-    res.json({
-      operationName: `models/veo-3.1-lite-generate-preview/operations/${simulationOpId}`,
-      isSimulation: true,
-      warning: err.message || "Veo requires a paid key; fallback simulation activated."
-    });
+    console.error("Video creation initiate error:", err);
+    res.status(500).json({ error: err.message || "Failed to initialize video generation" });
   }
 });
 
-// 3. API: Poll status of video operation
+// 3. Video Step 2: Poll (POST /api/video-status)
 app.post("/api/video-status", async (req, res) => {
-  const { operationName } = req.body;
-  if (!operationName) {
-    return res.status(400).json({ error: "Operation name is required." });
-  }
-
-  if (operationName.includes("simulation")) {
-    // Simulated background render: takes 5 seconds max
-    const opId = operationName.split("/").pop() || "";
-    const createdTime = parseInt(opId.replace("simulation_", "").replace("fallback_", ""), 10) || Date.now();
-    const isDone = Date.now() - createdTime > 5000;
-    return res.json({ done: isDone, isSimulation: true });
-  }
-
-  const ai = getGeminiClient();
-  if (!ai) {
-    return res.json({ done: true, isSimulation: true });
-  }
-
   try {
-    // Reconstruct the VideoOperation according to gemini-api SKILL.md
-    const op: any = { name: operationName };
+    const { operationName } = req.body;
+    if (!operationName) {
+      return res.status(400).json({ error: "operationName is required for polling status" });
+    }
+
+    const ai = getAIClient();
+    const op = new GenerateVideosOperation();
+    op.name = operationName;
+
     const updated = await ai.operations.getVideosOperation({ operation: op });
-    const uri = updated.response?.generatedVideos?.[0]?.video?.uri || null;
-    res.json({ done: updated.done, isSimulation: false, uri });
-  } catch (error: any) {
-    console.error("Poll video status error:", error);
-    res.json({ done: true, isSimulation: true, error: error.message });
+    res.json({ done: updated.done, error: updated.error || null });
+  } catch (err: any) {
+    console.error("Video status polling error:", err);
+    res.status(500).json({ error: err.message || "Failed to check video status" });
   }
 });
 
-// 4. API: Download / fetch completed video stream
+// 4. Video Step 3: Stream/Download (GET/POST /api/video-download)
 app.post("/api/video-download", async (req, res) => {
-  const { operationName } = req.body;
-  if (!operationName) {
-    return res.status(400).json({ error: "Operation name is required." });
-  }
-
-  const ai = getGeminiClient();
-  if (operationName.includes("simulation") || !ai) {
-    // Generate a fallback simulated gorgeous visual direct stream or dynamic link with stable GCP CDN
-    return res.json({ redirect: true, url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" });
-  }
-
   try {
-    const op: any = { name: operationName };
+    const { operationName } = req.body;
+    if (!operationName) {
+      return res.status(400).json({ error: "operationName is required to request video file" });
+    }
+
+    const ai = getAIClient();
+    const op = new GenerateVideosOperation();
+    op.name = operationName;
+
     const updated = await ai.operations.getVideosOperation({ operation: op });
     const uri = updated.response?.generatedVideos?.[0]?.video?.uri;
 
     if (!uri) {
-      return res.status(404).json({ error: "Video URI not ready or not found." });
+      return res.status(404).json({ error: "Video download URI is not available yet." });
     }
 
-    // Stream download directly from Google servers hidden via secure header proxy
-    const headers: Record<string, string> = {};
-    const uriLower = uri.toLowerCase();
-    
-    // Only attach x-goog-api-key if it's the Gemini/Generative Language API endpoint itself
-    // and NOT a Google Cloud Storage (GCS/commondatastorage/storage.googleapis) URL or signed URL.
-    if (
-      uriLower.includes("generativelanguage.googleapis.com") &&
-      !uriLower.includes("storage.googleapis.com") &&
-      !uriLower.includes("commondatastorage.googleapis.com") &&
-      !uriLower.includes("signature=") &&
-      !uriLower.includes("x-goog-")
-    ) {
-      headers["x-goog-api-key"] = process.env.GEMINI_API_KEY || "";
+    const apiKey = process.env.GEMINI_API_KEY || "";
+    const response = await fetch(uri, {
+      headers: { "x-goog-api-key": apiKey },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download video from Google cloud: ${response.statusText}`);
     }
-
-    let videoResponse = await fetch(uri, { headers });
-
-    // Fallback: If initial request failed with unauthorized/forbidden and headers were present, retry without auth headers
-    if (!videoResponse.ok && (videoResponse.status === 403 || videoResponse.status === 401) && Object.keys(headers).length > 0) {
-      console.log(`Video download API: initial fetch received status ${videoResponse.status}. Retrying without authentication headers...`);
-      videoResponse = await fetch(uri);
-    }
-
-    if (!videoResponse.ok) {
-      throw new Error(`Upstream video-download server returned error status: ${videoResponse.status}`);
-    }
-
-    const arrayBuffer = await videoResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Length", buffer.length);
-    res.setHeader("Accept-Ranges", "bytes");
-    res.send(buffer);
-
-  } catch (error: any) {
-    console.error("Download video stream error:", error);
-    res.json({ redirect: true, url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" });
+    
+    // Pump stream to client
+    const body = response.body;
+    if (body) {
+      const reader = body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+    }
+    res.end();
+  } catch (err: any) {
+    console.error("Video downloading proxy error:", err);
+    res.status(500).json({ error: err.message || "Failed to download generated video" });
   }
 });
 
-// 5. API: Video Proxy to bypass hotlinking and security access controls with full range and bytes support
-app.get("/api/video-proxy", async (req, res) => {
-  const urlParam = req.query.url as string;
-  if (!urlParam) {
-    return res.status(400).send("Video URL is required.");
-  }
-
+// 5. Text-To-Speech API Proxy
+app.post("/api/text-to-speech", async (req, res) => {
   try {
-    const videoUrl = decodeURIComponent(urlParam);
-    const lowerUrl = videoUrl.toLowerCase();
-    const headers: Record<string, string> = {};
+    const { text, language, voice } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: "Text is required to perform synthesis" });
+    }
+
+    const ai = getAIClient();
+    const speakerPrompt = `Synthesize the following text in language: ${language || "en"}. Text: ${text}`;
     
-    // Add custom headers if accessing Mixkit to prevent hotlinking protection from kicking in
-    if (lowerUrl.includes("mixkit.co")) {
-      headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-      headers["Referer"] = "https://mixkit.co/";
-      headers["Accept"] = "*/*";
-    } else if (
-      lowerUrl.includes("generativelanguage.googleapis.com") &&
-      !lowerUrl.includes("storage.googleapis.com") &&
-      !lowerUrl.includes("commondatastorage.googleapis.com") &&
-      !lowerUrl.includes("signature=") &&
-      !lowerUrl.includes("x-goog-")
-    ) {
-      // Only attach x-goog-api-key if it's the Gemini/Generative Language API endpoint itself
-      headers["x-goog-api-key"] = process.env.GEMINI_API_KEY || "";
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text: speakerPrompt }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voice || "Kore" },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) {
+      throw new Error("No synthesized audio data was returned from Gemini speech model.");
     }
 
-    // Fetch video from source
-    let response: Response;
-    try {
-      response = await fetch(videoUrl, { headers });
-      
-      // Fallback: If initial request failed with unauthorized/forbidden and headers were present, retry without auth headers
-      if (!response.ok && (response.status === 403 || response.status === 401) && Object.keys(headers).length > 0) {
-        console.log(`Video proxy: initial fetch received status ${response.status}. Retrying without authentication headers...`);
-        response = await fetch(videoUrl);
-      }
-    } catch (err) {
-      console.warn(`Video proxy connection failed for URL ${videoUrl}. Sourcing fallback video...`, err);
-      response = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
-    }
-
-    if (!response || !response.ok) {
-      console.warn(`Upstream returned status ${response?.status || 'unknown'}. Sourcing stable fallback video...`);
-      response = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
-    }
-
-    // Convert to a full safe buffer on the Node backend to set exact headers
-    let buffer: Buffer;
-    try {
-      const arrayBuffer = await response.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-    } catch (err) {
-      console.error("Error reading response buffer, using stable backup video.", err);
-      const backupResponse = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
-      const arrayBuffer = await backupResponse.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
-    }
-
-    if (req.query.download === "true") {
-      res.setHeader("Content-Disposition", "attachment; filename=\"ai_video_designer.mp4\"");
-    }
-
-    // Set precise headers for all device media players and browser engines
-    res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Length", buffer.length);
-    res.setHeader("Accept-Ranges", "bytes");
-
-    // Send complete binary video stream back fully formed and error-free
-    res.send(buffer);
-
-  } catch (error: any) {
-    console.error("Video proxy streaming failure:", error);
-    try {
-      // Direct absolute secure fallback stream so the browser media player NEVER breaks
-      const fallbackResponse = await fetch("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
-      const arrayBuffer = await fallbackResponse.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      
-      if (req.query.download === "true") {
-        res.setHeader("Content-Disposition", "attachment; filename=\"ai_video_designer.mp4\"");
-      }
-      res.setHeader("Content-Type", "video/mp4");
-      res.setHeader("Content-Length", buffer.length);
-      res.setHeader("Accept-Ranges", "bytes");
-      res.send(buffer);
-    } catch (fallbackErr) {
-      res.status(500).send(`Critical stream recovery failure: ${error.message}`);
-    }
+    res.json({
+      success: true,
+      audioBase64: base64Audio,
+      mimeType: "audio/wav",
+    });
+  } catch (err: any) {
+    console.error("Gemini Text-to-Speech synthesis error:", err);
+    res.status(500).json({ error: err.message || "Failed to synthesize text. Fallback to client speech is recommended." });
   }
 });
 
-// Serve frontend assets cleanly using our Express v4 routing helper
-async function initializeServer() {
+// ----------------------
+// VITE DEV & CLIENT FLOWS
+// ----------------------
+
+async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -367,10 +256,8 @@ async function initializeServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[AI Studio] Server is booting on http://0.0.0.0:${PORT}`);
+    console.log(`Live application running on http://0.0.0.0:${PORT}`);
   });
 }
 
-initializeServer().catch(err => {
-  console.error("Critical server failure on boot:", err);
-});
+startServer();

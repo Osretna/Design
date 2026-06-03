@@ -1,8 +1,6 @@
 {
-  "name": "AI Video Designer",
-  "description": "منصة لتصميم وتحويل الصور والنصوص إلى فيديوهات بذكاء اصطناعي فائق الدقة ومتوافقة مع الهواتف كمستند PWA متكامل",
+  "name": "Smart Creator AI",
+  "description": "منصة المبدع الذكي المتكاملة لتوليد الصور والفيديوهات وتحويل النصوص إلى كلام بأحدث نماذج الذكاء الاصطناعي مع لوحة تحكم متقدمة.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
