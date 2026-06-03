@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, GenerateVideosOperation, Modality } from "@google/genai";
 import dotenv from "dotenv";
@@ -11,13 +10,23 @@ const app = express();
 const PORT = 3000;
 
 // Enable Cross-Origin Resource Sharing (CORS) for external frontend deployments (like Vercel)
-app.use(cors({
-  origin: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+    return;
+  }
+  next();
+});
 
 // Increase payload sizes as we will be processing base64 image data
 app.use(express.json({ limit: "20mb" }));
