@@ -12,10 +12,11 @@ const PORT = 3000;
 
 // Enable Cross-Origin Resource Sharing (CORS) for external frontend deployments (like Vercel)
 app.use(cors({
-  origin: "*",
+  origin: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 
 // Increase payload sizes as we will be processing base64 image data
@@ -214,7 +215,11 @@ app.post("/api/text-to-speech", async (req, res) => {
     }
 
     const ai = getAIClient();
-    const speakerPrompt = `Synthesize the following text in language: ${language || "en"}. Text: ${text}`;
+    
+    const isArabic = (language === "ar") || /[\u0600-\u06FF]/.test(text);
+    const speakerPrompt = isArabic
+      ? `You are an expert Arabic voice-over artist. Please read the following Arabic text aloud with standard, highly professional, crystal-clear Modern Standard Arabic (Fusha) pronunciation, natural cadence, and accurate phrasing. Do not translate. Only repeat/read this exact Arabic text:\n\n${text}`
+      : `You are an expert English voice-over artist. Please read the following text aloud with highly professional, crystal-clear pronunciation and natural cadence. Only repeat/read this exact text:\n\n${text}`;
     
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-tts-preview",

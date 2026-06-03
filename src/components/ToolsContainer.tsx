@@ -229,13 +229,19 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
         }
         // Speak directly through client-side hardware
         const utterance = new SpeechSynthesisUtterance(speechText);
-        utterance.lang = lang === "ar" ? "ar-EG" : "en-US";
         
-        // Find suitable voice if possible
+        const hasArabic = /[\u0600-\u06FF]/.test(speechText);
+        utterance.lang = hasArabic || lang === "ar" ? "ar-EG" : "en-US";
+        
+        // Find suitable voice if possible (Chrome / Safari / Edge standard locales)
         const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find((v) => v.lang.startsWith(utterance.lang));
+        const preferred = voices.find((v) => v.lang.toLowerCase() === utterance.lang.toLowerCase()) ||
+                          voices.find((v) => v.lang.toLowerCase().startsWith(utterance.lang.toLowerCase().split("-")[0])) ||
+                          voices.find((v) => v.lang.toLowerCase().includes("ar") && (hasArabic || lang === "ar"));
         if (preferred) utterance.voice = preferred;
 
+        // Cancel any pending speech synthesis so it starts speaking immediately without freezing
+        window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
         
         // Simulate a success blob audio url
