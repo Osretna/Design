@@ -1,6 +1,6 @@
 // API Connection Utilities for Smart Creator AI Suite
 
-const DEFAULT_BACKEND = "https://ais-pre-2b55aux3rhxjn2afxydwa4-425155535946.europe-west2.run.app";
+const DEFAULT_BACKEND = (import.meta as any).env?.VITE_API_URL || "https://ais-pre-2b55aux3rhxjn2afxydwa4-425155535946.europe-west2.run.app";
 
 /**
  * Gets the standard active backend API address.

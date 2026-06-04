@@ -231,7 +231,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
               </tr>
             ) : (
               filteredReports.map((r, idx) => (
-                <tr key={r.id || idx} className="odd:bg-white even:bg-slate-50/50 dark:odd:bg-[#151821] dark:even:bg-[#13151d] hover:bg-slate-100/70 dark:hover:bg-slate-800/30 transition-all font-mono text-slate-705 dark:text-slate-300">
+                <tr key={r.id || idx} className="odd:bg-white even:bg-slate-50/50 dark:odd:bg-[#151821] dark:even:bg-[#13151d] hover:bg-slate-100/70 dark:hover:bg-slate-800/30 transition-all font-mono text-slate-700 dark:text-slate-300">
                   <td className="p-4 font-semibold text-orange-500">#{r.id.substring(0, 8)}</td>
                   <td className="p-4">
                     <span className="font-sans block font-semibold text-slate-800 dark:text-white">{r.userDisplayName || "Creative Expert"}</span>
@@ -255,7 +255,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
                     <button
                       id={`inspect-trigger-${r.id}`}
                       onClick={() => setSelectedReport(r)}
-                      className="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-orange-500 dark:hover:border-orange-400/50 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer text-slate-450"
+                      className="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:border-orange-500 dark:hover:border-orange-400/50 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer text-slate-400"
                       title={t.reportDetailTitle}
                     >
                       <Eye className="w-4 h-4" />
@@ -273,14 +273,14 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-[#020509]/90 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in" id="report-mdl-container">
           <div className="w-full max-w-lg bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 relative overflow-hidden">
             
-            <div className="flex items-center justify-between pb-4 border-b border-slate-150 dark:border-slate-800 mb-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-6 font-sans">
               <h3 className="text-base md:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 font-sans">
                 🔍 {t.reportDetailTitle}
               </h3>
               <button
                 id="close-mdl-btn"
                 onClick={() => setSelectedReport(null)}
-                className="p-1 px-1.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg transition-all cursor-pointer"
+                className="p-1 px-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -308,7 +308,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
                     <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500">{selectedReport.userEmail}</p>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-slate-150 dark:border-slate-900 grid grid-cols-2 gap-4 text-xs">
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-900 grid grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-slate-400 dark:text-slate-500 block mb-1">{lang === "ar" ? "رقم التعريف البصري:" : "User UID:"}</span>
                     <p className="font-mono truncate text-[10px] text-slate-500 dark:text-slate-300">{selectedReport.userId}</p>
@@ -322,7 +322,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
 
               <div>
                 <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-mono block mb-2">{lang === "ar" ? "توجيهات الإدخال والوصف:" : "Processed Prompt Cues:"}</span>
-                <p className="bg-slate-50 dark:bg-[#0d1017] border border-slate-150 dark:border-slate-900 p-4 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-serif leading-relaxed" dir="auto">
+                <p className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-900 p-4 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-serif leading-relaxed" dir="auto">
                   {selectedReport.prompt || "No prompt parameters logged for this action pattern."}
                 </p>
               </div>
@@ -331,7 +331,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
                 <div>
                   <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-mono block mb-2">{lang === "ar" ? "المورد المولد الموثق:" : "Generated Resource Asset:"}</span>
                   {selectedReport.resultUrl.includes("truncated...") ? (
-                    <div className="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-[#0d1017] border border-slate-150 dark:border-slate-800 rounded-xl">
+                    <div className="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 rounded-xl">
                       <p className="text-xs text-slate-500 dark:text-slate-400 font-medium font-sans">
                         💾 {lang === "ar" 
                           ? "تم حفظ البيانات الثنائية (Base64) بنجاح للعميل واقتصاص السجل لتوفير التخزين وتجنب تجاوز سعة Firestore." 
@@ -350,7 +350,7 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
                         href={selectedReport.resultUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-500/30 text-slate-705 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 text-xs rounded-xl font-medium transition-all"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-500/30 text-slate-700 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 text-xs rounded-xl font-medium transition-all"
                       >
                         🔗 {lang === "ar" ? "معاينة الرابط الكامل" : "Preview Resource Link"}
                       </a>

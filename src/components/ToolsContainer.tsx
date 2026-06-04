@@ -665,7 +665,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                   value={imagePrompt}
                   onChange={(e) => setImagePrompt(e.target.value)}
                   placeholder={t.promptPlaceholderImage}
-                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 rounded-xl p-4 text-slate-805 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[120px] resize-none shadow-inner"
+                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 rounded-xl p-4 text-slate-800 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[120px] resize-none shadow-inner"
                   dir="auto"
                 />
 
@@ -691,7 +691,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                       id="image-ratio-selection"
                       value={imageAspectRatio}
                       onChange={(e) => setImageAspectRatio(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-808 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-orange-500/50"
+                      className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-orange-500/50"
                     >
                       <option value="1:1">1:1 (Square)</option>
                       <option value="16:9">16:9 (Landscape)</option>
@@ -814,7 +814,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                       <div className="space-y-2">
                         <Upload className="w-8 h-8 text-slate-400 mx-auto" />
                         <p className="text-xs text-slate-500 dark:text-slate-400">{lang === "ar" ? "اسحب وأسقط صورتك هنا أو واضغط للاستعراض" : "Drag & drop image file or click to browse files"}</p>
-                        <p className="text-[10px] text-slate-450 dark:text-slate-600">Supports PNG, JPG, JPEG (Max 10MB)</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-600">Supports PNG, JPG, JPEG (Max 10MB)</p>
                       </div>
                     )}
                   </div>
@@ -825,7 +825,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                   value={videoPrompt}
                   onChange={(e) => setVideoPrompt(e.target.value)}
                   placeholder={t.promptPlaceholderVideo}
-                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 rounded-xl p-4 text-slate-805 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[90px] resize-none shadow-inner"
+                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 rounded-xl p-4 text-slate-800 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[90px] resize-none shadow-inner"
                   dir="auto"
                 />
 
@@ -839,7 +839,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                           ? "كيف تجعل الأشخاص داخل الصورة يمشون ويتحركون ويتحدثون فعلياً؟" 
                           : "How do you make people in the picture walk, move, and talk for real?"}
                       </h4>
-                      <p className="text-[11px] text-slate-550 dark:text-slate-400 leading-relaxed md:w-[94%]">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed md:w-[94%]">
                         {lang === "ar"
                           ? "التحريك التفاعلي الحالي بالمتصفح (مثل حركة الكاميرا، تموجات الماء، ومهب الرياح) صُمم كبديل مجاني وفوري. لتحقيق حركة بشرية وعضوية فعلية داخل الصورة (مثل المشي وإيماءات اليد)، يستخدم التطبيق محرك Google Veo 3.1 فائق التوليد. يتطلب تشغيل هذا المحرك السحابي الضخم وجود مفتاح API مفعل عليه الفواتير والدفع لدى قوقل."
                           : "The current interactive in-browser styling (panning, water ripples, wind sway) acts as an instant free fallback. To achieve true human/character motion (walking, gestures, object movement), the app utilizes Google's state-of-the-art Veo 3.1 AI video model. This heavy cloud renderer requires an API key with active Google Cloud billing."}
@@ -875,7 +875,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                       id="video-ratio-selection"
                       value={videoAspectRatio}
                       onChange={(e) => setVideoAspectRatio(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-808 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-red-500/50"
+                      className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-red-500/50"
                     >
                       <option value="16:9">16:9 (Landscape)</option>
                       <option value="9:16">9:16 (Portrait)</option>
@@ -933,7 +933,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                   <div className="text-center text-slate-400 dark:text-slate-600 px-4">
                     <div className="text-4xl mb-3">🎬</div>
                     <p className="text-xs md:text-sm mb-1 text-slate-600 dark:text-slate-400">{lang === "ar" ? "سيظهر مخرج الفيديو الذكي هنا" : "AI Video render will be served at this container"}</p>
-                    <p className="text-[11px] text-slate-450 dark:text-slate-705">{lang === "ar" ? "اضغط زر التوليد لتشغيل محرك Veo 3.1" : "Rendered using advanced Veo model preview."}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">{lang === "ar" ? "اضغط زر التوليد لتشغيل محرك Veo 3.1" : "Rendered using advanced Veo model preview."}</p>
                   </div>
                 )}
               </div>
@@ -980,7 +980,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                   value={speechText}
                   onChange={(e) => setSpeechText(e.target.value)}
                   placeholder={t.promptPlaceholderSpeech}
-                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 rounded-xl p-4 text-slate-805 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[110px] resize-none shadow-inner"
+                  className="w-full bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800/80 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 rounded-xl p-4 text-slate-800 dark:text-white text-xs md:text-sm outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 min-h-[110px] resize-none shadow-inner"
                   dir="auto"
                 />
 
@@ -993,7 +993,7 @@ export default function ToolsContainer({ lang, userId, userEmail, userDisplayNam
                         id="speech-voice-selection"
                         value={voiceChoice}
                         onChange={(e) => setVoiceChoice(e.target.value)}
-                        className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-808 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-blue-500/50"
+                        className="bg-slate-50 dark:bg-[#0d1017] border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-white rounded-lg p-1.5 px-3 outline-none focus:border-blue-500/50"
                       >
                         <option value="Kore">Kore (Standard Clear)</option>
                         <option value="Puck">Puck (Cheerful Soft)</option>
