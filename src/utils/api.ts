@@ -1,6 +1,6 @@
 // API Connection Utilities for Smart Creator AI Suite
 
-const DEFAULT_BACKEND = "https://ais-pre-4msi3yx3phcvtuxpofrnw2-371641846375.europe-west3.run.app";
+const DEFAULT_BACKEND = "https://ais-pre-2b55aux3rhxjn2afxydwa4-425155535946.europe-west2.run.app";
 
 /**
  * Initializes and persists the backend base URL on load.
@@ -10,6 +10,14 @@ export function initializeBackendUrl() {
   if (typeof window === "undefined") return;
   try {
     const origin = window.location.origin;
+    
+    // Auto-heal: If the localStorage holds a stale/dead/legacy backend URL, clean it up!
+    const saved = localStorage.getItem("smart_creator_backend_url");
+    if (saved && (saved.includes("ais-pre-4msi") || saved.includes("371641846375"))) {
+      localStorage.removeItem("smart_creator_backend_url");
+      console.log("[API Auto-Heal] Removed stale legacy backend URL from localStorage.");
+    }
+
     // Always trust and update on Cloud Run or localhost servers
     if (origin.includes(".run.app") || origin.includes("localhost") || origin.includes("127.0.0.1")) {
       localStorage.setItem("smart_creator_backend_url", origin);
