@@ -3,6 +3,18 @@
 const DEFAULT_BACKEND = "https://ais-pre-2b55aux3rhxjn2afxydwa4-425155535946.europe-west2.run.app";
 
 /**
+ * Gets the standard active backend API address.
+ */
+export function getDefaultBackendUrl(): string {
+  if (typeof window === "undefined") return DEFAULT_BACKEND;
+  const origin = window.location.origin;
+  if (origin.includes(".run.app") || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+    return origin;
+  }
+  return DEFAULT_BACKEND;
+}
+
+/**
  * Initializes and persists the backend base URL on load.
  * This runs on startup when running inside the active Cloud Run container.
  */
@@ -11,11 +23,16 @@ export function initializeBackendUrl() {
   try {
     const origin = window.location.origin;
     
-    // Auto-heal: If the localStorage holds a stale/dead/legacy backend URL, clean it up!
+    // Auto-heal: If the localStorage holds a stale/dead/legacy backend URL or static hosts like Vercel, clean it up!
     const saved = localStorage.getItem("smart_creator_backend_url");
-    if (saved && (saved.includes("ais-pre-4msi") || saved.includes("371641846375"))) {
+    if (saved && (
+      saved.includes("vercel.app") || 
+      saved.includes("ais-pre-4msi") || 
+      saved.includes("371641846375") ||
+      (!saved.includes(".run.app") && !saved.includes("localhost") && !saved.includes("127.0.0.1"))
+    )) {
       localStorage.removeItem("smart_creator_backend_url");
-      console.log("[API Auto-Heal] Removed stale legacy backend URL from localStorage.");
+      console.log("[API Auto-Heal] Removed stale or static host backend URL from localStorage.");
     }
 
     // Always trust and update on Cloud Run or localhost servers

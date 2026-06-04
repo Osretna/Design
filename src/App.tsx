@@ -12,7 +12,7 @@ import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import ToolsContainer from "./components/ToolsContainer";
 import ReportsPanel from "./components/ReportsPanel";
-import { initializeBackendUrl, getPersistedBackendUrl, savePersistedBackendUrl } from "./utils/api";
+import { initializeBackendUrl, getPersistedBackendUrl, savePersistedBackendUrl, getDefaultBackendUrl } from "./utils/api";
 
 import { Crown, LogOut, Terminal, Compass, Laptop, Cpu, ShieldCheck, Settings } from "lucide-react";
 
@@ -298,9 +298,9 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => {
-                      const origin = window.location.origin;
-                      setBackendUrl(origin);
-                      savePersistedBackendUrl(origin);
+                      const fallback = getDefaultBackendUrl();
+                      setBackendUrl(fallback);
+                      savePersistedBackendUrl(fallback);
                       alert(language === "ar" ? "تمت استعادة الإعدادات الافتراضية بنجاح!" : "Restored system default API URL targets.");
                       setShowApiSettings(false);
                     }}
