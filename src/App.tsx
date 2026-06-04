@@ -109,6 +109,15 @@ export default function App() {
 
     try {
       const logId = `report-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      
+      // Prevent Firestore document limit (1MB) exeeded by checking and truncating heavy Base64 payload strings
+      let safeResultUrl = resultUrl;
+      if (resultUrl && resultUrl.startsWith("data:") && resultUrl.length > 50000) {
+        const mimeSeparatorIndex = resultUrl.indexOf(";");
+        const mimeType = mimeSeparatorIndex !== -1 ? resultUrl.substring(5, mimeSeparatorIndex) : "application/octet-stream";
+        safeResultUrl = `data:${mimeType};base64,truncated...[Size: ${(resultUrl.length / 1024).toFixed(1)} KB]`;
+      }
+
       const logDoc = {
         id: logId,
         userId: userToLog.uid,
@@ -116,7 +125,7 @@ export default function App() {
         userDisplayName: userToLog.displayName || userToLog.email?.split("@")[0] || "Creative Developer",
         type,
         prompt,
-        resultUrl,
+        resultUrl: safeResultUrl,
         timestamp: new Date().toISOString(),
         language
       };

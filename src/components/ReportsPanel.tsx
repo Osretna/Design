@@ -330,19 +330,32 @@ export default function ReportsPanel({ reports, lang, currentUserId, isAdmin }: 
               {selectedReport.resultUrl && selectedReport.resultUrl !== "#client-audio" && selectedReport.resultUrl !== "login_success" && (
                 <div>
                   <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-mono block mb-2">{lang === "ar" ? "المورد المولد الموثق:" : "Generated Resource Asset:"}</span>
-                  <div className="flex gap-2">
-                    {selectedReport.type === "text-to-image" && (
-                      <img src={selectedReport.resultUrl} alt="Inspection" className="max-h-24 rounded border border-slate-200 dark:border-slate-800 object-cover" />
-                    )}
-                    <a
-                      href={selectedReport.resultUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-500/30 text-slate-705 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 text-xs rounded-xl font-medium transition-all"
-                    >
-                      🔗 {lang === "ar" ? "معاينة الرابط الكامل" : "Preview Resource Link"}
-                    </a>
-                  </div>
+                  {selectedReport.resultUrl.includes("truncated...") ? (
+                    <div className="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-[#0d1017] border border-slate-150 dark:border-slate-800 rounded-xl">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium font-sans">
+                        💾 {lang === "ar" 
+                          ? "تم حفظ البيانات الثنائية (Base64) بنجاح للعميل واقتصاص السجل لتوفير التخزين وتجنب تجاوز سعة Firestore." 
+                          : "Base64 binary payload processed. Telemetry metadata was truncated to conserve Firestore document size limits."}
+                      </p>
+                      <p className="font-mono text-[10px] text-orange-500 mt-1">
+                        {selectedReport.resultUrl}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      {selectedReport.type === "text-to-image" && (
+                        <img src={selectedReport.resultUrl} alt="Inspection" className="max-h-24 rounded border border-slate-200 dark:border-slate-800 object-cover" />
+                      )}
+                      <a
+                        href={selectedReport.resultUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-500/30 text-slate-705 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 text-xs rounded-xl font-medium transition-all"
+                      >
+                        🔗 {lang === "ar" ? "معاينة الرابط الكامل" : "Preview Resource Link"}
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
