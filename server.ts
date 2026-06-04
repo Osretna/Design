@@ -17,20 +17,24 @@ const app = express();
 const PORT = 3000;
 
 // Enable Cross-Origin Resource Sharing (CORS) for external frontend deployments (like Vercel)
-app.use(cors({
-  origin: true, // Echoes back the request origin dynamically to allow credential-supported CORS
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"]
-}));
-
-// Enable pre-flight options support across all routes explicitly
-app.options("*", cors({
-  origin: true,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"]
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-goog-api-key");
+  
+  // Immediately handle options request preflight check
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+  next();
+});
 
 // Increase payload sizes as we will be processing base64 image data
 app.use(express.json({ limit: "20mb" }));
