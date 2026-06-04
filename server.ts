@@ -7,6 +7,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Ensure the Gemini API Key is configured. If not present in environment or set to placeholder,
+// use the professional API key provided by the user.
+if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === "" || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+  process.env.GEMINI_API_KEY = "AQ.Ab8RN6KlOSxSUkmTsYn1GKrVdyIEcmdUDvSxA4BBS2gNcAXevw";
+}
+
 const app = express();
 const PORT = 3000;
 
