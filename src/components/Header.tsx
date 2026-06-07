@@ -1,4 +1,4 @@
-import { Dumbbell, Moon, ShoppingCart, Sun, UserCheck } from "lucide-react";
+import { Dumbbell, Moon, ShoppingCart, Sun, UserCheck, Truck } from "lucide-react";
 import { StoreSettings } from "../types";
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   cartCount: number;
   onOpenCart: () => void;
   onOpenAdmin: () => void;
+  onOpenTracking: () => void;
 }
 
 export default function Header({
@@ -21,6 +22,7 @@ export default function Header({
   cartCount,
   onOpenCart,
   onOpenAdmin,
+  onOpenTracking,
 }: HeaderProps) {
   const isAr = language === "ar";
   const name = isAr ? settings.storeNameAr : settings.storeNameEn;
@@ -51,6 +53,17 @@ export default function Header({
         {/* Global Toolbar Options */}
         <div className="flex items-center gap-2 sm:gap-3">
           
+          {/* Real-time Track Order button */}
+          <button
+            onClick={onOpenTracking}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 dark:border-emerald-500/30 bg-emerald-500/10 text-xs font-extrabold text-emerald-750 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+          >
+            <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+            <span>
+              {isAr ? "تتبع طلبك 🚚" : "Track Order 🚚"}
+            </span>
+          </button>
+
           {/* Admin Panel button */}
           <button
             onClick={onOpenAdmin}
