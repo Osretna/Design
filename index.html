@@ -1,37 +1,27 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>فتنس برو ستور | Fitness Pro Store - للأجهزة والمستلزمات الرياضية</title>
-    <!-- طابع وهوية المتجر الرياضي في التابة -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🏆</text></svg>" />
-    
-    <!-- PWA meta guidelines and links -->
+    <title>Smart Creator AI - المبدع الذكي</title>
+    <!-- Favicon Assets -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" />
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" />
+    <!-- PWA Manifest & Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#059669" />
-    <meta name="description" content="متجر رياضي متكامل لبيع الأجهزة والمستلزمات الرياضية الحديثة بالجنيه المصري." />
-    
-    <!-- iOS support -->
+    <meta name="theme-color" content="#ff6a00" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Fitness Pro" />
-    <link rel="apple-touch-icon" href="/icon_192.png" />
+    <meta name="apple-mobile-web-app-title" content="Smart Creator" />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   </head>
-  <body>
+  <body class="bg-[#040810] text-[#f1f5f9] select-none text-sm font-sans transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-
-    <!-- Register service worker automatically -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((reg) => console.log('Service Worker registered successfully!', reg.scope))
-            .catch((err) => console.error('Service Worker registration failed:', err));
-        });
-      }
-    </script>
   </body>
 </html>
-

@@ -1,6 +1,6 @@
 {
-  "name": "Fitness Pro Store",
-  "description": "An interactive sports equipment e-commerce store with product search, light/dark modes, admin management dashboard, geolocation delivery tracking, and automatic WhatsApp invoice generation.",
-  "requestFramePermissions": ["geolocation"],
+  "name": "Smart Creator AI",
+  "description": "منصة المبدع الذكي المتكاملة لتوليد الصور والفيديوهات وتحويل النصوص إلى كلام بأحدث نماذج الذكاء الاصطناعي مع لوحة تحكم متقدمة.",
+  "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

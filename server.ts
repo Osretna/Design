@@ -19,18 +19,31 @@ const PORT = 3000;
 // Enable Cross-Origin Resource Sharing (CORS) for external frontend deployments (like Vercel)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  console.log(`[CORS Logger] Method: ${req.method} | Origin: ${origin || "None"} | Path: ${req.path}`);
+
   if (origin) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
   } else {
     res.setHeader("Access-Control-Allow-Origin", "*");
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-goog-api-key");
   
-  // Immediately handle options request preflight check
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  
+  // Dynamically echo back requested headers to be fully permissive for preflights
+  const requestHeaders = req.headers["access-control-request-headers"];
+  if (requestHeaders) {
+    res.setHeader("Access-Control-Allow-Headers", requestHeaders);
+  } else {
+    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-goog-api-key");
+  }
+  
+  // Vary header is extremely important so that intermediate proxies do not cache cors responses for other origins
+  res.setHeader("Vary", "Origin");
+  
+  // Immediately handle options request preflight check with status 204 (No Content)
   if (req.method === "OPTIONS") {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
   next();
